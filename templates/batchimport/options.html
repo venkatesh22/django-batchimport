@@ -1,0 +1,64 @@
+<html>
+<body>
+Options Form:
+<form id='import_execute_form' action="{% url batchimport_import_options %}" method="POST">
+    <div class="fieldWrapper">
+        {{ form.show_successful_imports.errors }}
+        <label for="id_show_successful_imports">{{ form.show_successful_imports.label }}</label>
+        {{ form.show_successful_imports }}
+    </div>
+    <div class="fieldWrapper">
+        {{ form.show_successful_updates.errors }}
+        <label for="id_show_successful_imports">{{ form.show_successful_updates.label }}</label>
+        {{ form.show_successful_updates }}
+    </div>
+    <div class="fieldWrapper">
+        {{ form.show_errors.errors }}
+        <label for="id_show_successful_imports">{{ form.show_errors.label }}</label>
+        {{ form.show_errors }}
+    </div>
+    <div class="fieldWrapper">
+        {{ form.stop_on_first_error.errors }}
+        <label for="id_show_successful_imports">{{ form.stop_on_first_error.label }}</label>
+        {{ form.stop_on_first_error }}
+    </div>
+    <div class="fieldWrapper">
+        {{ form.update_dupes.errors }}
+        <label for="id_show_successful_imports">{{ form.update_dupes.label }}</label>
+        {{ form.update_dupes }}
+    </div>
+    <div class="fieldWrapper">
+        {{ form.start_row.errors }}
+        <label for="id_show_successful_imports">{{ form.start_row.label }}</label>
+        {{ form.start_row }}
+    </div>
+    <div class="fieldWrapper">
+        {{ form.end_row.errors }}
+        <label for="id_show_successful_imports">{{ form.end_row.label }}</label>
+        {{ form.end_row }}
+    </div>
+Mapping for {{model_for_import}}<br/>
+	<table>
+		<tr>
+			<th>Field Name</th>
+			<th>Spreadsheet Column</th>
+			<th>Default Value</th>
+			<th>Relationship*</th>
+			<th>Is Identity</th>
+		</tr>
+		{% for field_name, field_list in form.field_dict.items %}
+		<tr>
+			<td>{{ field_name }}</td>
+			{% for field in field_list %}
+			<div class="fieldWrapper">
+			<td>{{ field }}</td>
+			</div>
+			{% endfor %}
+		</tr>
+		{% endfor %}
+	</table>
+	<input type="submit" value="Submit" />
+</form>
+
+</body>
+</html>

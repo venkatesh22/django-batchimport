@@ -1,0 +1,73 @@
+Thanks for downloading django-batchimport.
+
+INSTALLATION:
+1. Ensure that you have Python 2.5+ installed. 
+See http://www.python.org for more information.
+
+2. Ensure that you have Django 1.0+ installed.
+See http://docs.djangoproject.com/en/dev/topics/install/ for more
+information.
+
+3. Install xlrd.
+See http://www.lexicon.net/sjmachin/xlrd.htm for more
+information.
+
+4. In the same folder where you found this file is a sample_project folder.
+Navigate to it.
+
+5. Open the settings.py file. Change the following settings to your
+liking:
+   a. Templates folder location (look for "CHANGE_ME!!!" in settings.py).
+   b. (Optional) Database type/location. I've got it set up to write 
+      a Sqlite3 db to this folder and call it "sample_project.db".
+
+6. Open the batchimport/batchimport_settings.py file.
+
+7. Look for this setting information:
+# Specify where the uploaded Microsoft Excel file will be saved to the
+# system.
+# NOTE: This must be a absolute path.
+# NOTE: Django must have read/write access to this location.
+BATCH_IMPORT_TEMPFILE_LOCATION = get_setting('BATCH_IMPORT_TEMPFILE_LOCATION', '/tmp/')
+
+8. Change the default setting to one of your choosing (/tmp/ will work on most
+linux boxes but this will fail on a Windows machine).
+
+9. Go back to your sample_project folder and run syncdb (adding admin user):
+   python manage.py syncdb
+
+10. Start your django app:
+    python manage.py runserver
+
+TESTING:
+11. Navigate to http://localhost:8000/batchimport/import_start/
+
+12. Pick School from the model drop-down. 
+
+13. Browse to the sample_data folder (in the same folder you found this 
+document). Select the sample_school_data.xls file. Click Submit.
+
+14. Leave the options alone for now. Select appropriate mappings from the
+spreadsheet drop downs for each of the model fields. Leave the rest alone.
+Click submit.
+
+15. Wait some time (longer on Windows machines for some reason).
+
+16. See the results of your batch import.
+
+17. Go back to http://localhost:8000/batchimport/import_start/
+
+18. Pick Teacher and use the fake_teacher_data.xls file instead. Click submit.
+
+19. Match spreadsheet columns to model fields again. Leave the mapping to
+School.name as is. Click submit.
+
+20. Wait some time (again, longer on Windows machines for some reason).
+
+21. See results.
+
+22. Go to http://localhost:8000/admin/ and log in.
+
+23. Check out the Schools and Teachers you just imported.
+
+

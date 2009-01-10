@@ -48,10 +48,11 @@ class ImportOptionsForm(forms.Form):
 				for related_field_name in field_mapping_list:
 					related_field_choice_list.append((related_field_name, related_field_name))
 			
-			self.related_model_dict[field_name]= (related_model_app_name, related_model_name)
+			self.related_model_dict[field_name] = (related_model_app_name, related_model_name)
 
 			xls_column_field_name = field_name + '_xls_column'
-			self.fields[xls_column_field_name] = forms.ChoiceField(xls_column_option_list, label='Spreadsheet column:', required=False, initial='-1')
+			initial_value = _get_initial_value(xls_column_option_list, field_name)
+			self.fields[xls_column_field_name] = forms.ChoiceField(xls_column_option_list, label='Spreadsheet column:', required=False, initial=initial_value)
 			form_field_list.append(xls_column_field_name)
 			
 			default_value_field_name = field_name + '_default_value'
@@ -67,4 +68,12 @@ class ImportOptionsForm(forms.Form):
 			form_field_list.append(is_id_field_name)
 
 			self.field_dict[field_name] = form_field_list
-			
+
+def _get_initial_value(xls_column_option_list, field_name):
+	choice_index = -1
+	for item in xls_column_option_list:
+		choice = item[1]
+		if field_name.lower() == choice.lower():
+			choice_index = item[0]
+			break
+	return str(choice_index)

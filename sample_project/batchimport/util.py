@@ -47,7 +47,7 @@ def get_model_list():
 	"""
 	model_list = []
 	settings_model_list = BATCH_IMPORT_IMPORTABLE_MODELS
-	if not len(settings_model_list)==0:
+	if settings_model_list:
 		for model in settings_model_list:
 			model_list.append((model, model.split('.')[len(model.split('.'))-1]))
 	else:
@@ -58,8 +58,13 @@ def get_model_list():
 					if 'models' in dir(mod):
 						for item in dir(mod.models):
 							if (not item is None) and (type(getattr(mod.models, item)) == type(models.Model)):
-								if not (app+'.models.'+item, item) in model_list: 
-									model_list.append((app+'.models.'+item, item))		
+								if not (app+'.models.'+item, item) in model_list:
+									# You have to try to instantiate it to rule out any models
+									# you might find in the app that were simply imported (i.e. not
+									# REALLY part of that app).
+									model = get_model(app, item)
+									if model:
+										model_list.append((app+'.models.'+item, item))		
 				except ImportError:
 					pass
 	return model_list

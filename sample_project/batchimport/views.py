@@ -244,10 +244,11 @@ def import_execute(request, extra_context=None):
 						field_value = related_object
 					except:
 						field_value = None
-				field_value_dict[field_name] = field_value
-				field_is_identifier = request.session[field_name + '_is_id_field']
-				if field_is_identifier:
-					field_identity_dict[field_name] = field_value
+				if field_value:
+					field_value_dict[field_name] = field_value
+					field_is_identifier = request.session[field_name + '_is_id_field']
+					if field_is_identifier:
+						field_identity_dict[field_name] = field_value
 			
 			# Now see if the data in this row represents an already
 			# existing model in the database.

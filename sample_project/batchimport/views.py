@@ -288,7 +288,7 @@ def import_execute(request, extra_context=None):
 				status_dict['import_results_messages'].append(status_msg)
 		except:
 			status_dict['num_errors'] = status_dict['num_errors'] + 1
-			status_msg = 'spreadsheet row#' + str(row)+' ERROR: ' + sys.exc_info()[1]
+			status_msg = 'spreadsheet row#' + str(row)+' ERROR: ' + `sys.exc_info()[1]`
 			if show_errors:
 				status_dict['combined_results_messages'].append(status_msg)
 			status_dict['error_results_messages'].append(status_msg)

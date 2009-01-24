@@ -22,18 +22,18 @@ By default, the system does not allow you to import data for fields that are not
 Sometimes you will want to override the value coming in from the XLS file with a constant or a dynamically generated value. The following setting is a dictionary of values (or callables) per each fully specified model field.
 NOTE: You must import the item into your settings file if it is a callable.
 
-*BATCH_IMPORT_SHOW_SUCCESSFUL_IMPORTS*
-*BATCH_IMPORT_SHOW_SUCCESSFUL_UPDATES*
-*BATCH_IMPORT_SHOW_ERRORS*
+*BATCH_IMPORT_SHOW_SUCCESSFUL_IMPORTS*<br/>
+*BATCH_IMPORT_SHOW_SUCCESSFUL_UPDATES*<br/>
+*BATCH_IMPORT_SHOW_ERRORS*<br/>
 The system can show you individual imports, updates, or errors individually using the following boolean options.
 Note that True is assumed for all three if no setting is present.
 
-*BATCH_IMPORT_STOP_ON_FIRST_ERROR*
+*BATCH_IMPORT_STOP_ON_FIRST_ERROR*<br/>
 Whether the system should stop on the first error or process the entire uploaded spreadsheet and show errors afterwards.
 
-*BATCH_IMPORT_UPDATE_DUPS*
+*BATCH_IMPORT_UPDATE_DUPS*<br/>
 Whether or not to update duplicates or simply ignore them. Note that duplicates are determined based on the user's specification of model fields as identification fields. If these are not set, a duplicate must match at all column/fields.
 
-*BATCH_IMPORT_START_ROW*
-*BATCH_IMPORT_END_ROW*
+*BATCH_IMPORT_START_ROW*<br/>
+*BATCH_IMPORT_END_ROW*<br/>
 If no options are set for start/end row, defaults are used that assume (1) the spreadsheet has a header row (indicating that data starts on row #2 and (2) the entire spreadsheet is to be processed.

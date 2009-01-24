@@ -1,31 +1,24 @@
 #summary Descriptions of all available django-batchimport settings.
 
-= Introduction =
-This page describes the various settings you can use in your settings file to override the default behavior in django-batchimport.
-
-
-= Details =
+= Customizable Settings for django-batchimport =
+*BATCH_IMPORT_START_TEMPLATE*<br/>
+*BATCH_IMPORT_OPTIONS_TEMPLATE*<br/>
+*BATCH_IMPORT_EXECUTE_TEMPLATE*<br/>
+*BATCH_IMPORT_RESULTS_TEMPLATE*<br/>
 Template settings. The following settings can be set to point to a template to override the default template used (if you don't want to just edit the defaults):
-*BATCH_IMPORT_START_TEMPLATE* - Template to use for the import_start view.
 
-*BATCH_IMPORT_OPTIONS_TEMPLATE* - Template to use for the import_options view (this covers both object data and relationship import).
-
-*BATCH_IMPORT_EXECUTE_TEMPLATE* - Processing template.
-
-*BATCH_IMPORT_RESULTS_TEMPLATE* - Results template.
-
-*BATCH_IMPORT_IMPORTABLE_MODELS*
+*BATCH_IMPORT_IMPORTABLE_MODELS*<br/>
 Specify the list of models in your application which are importable in batch. If you do not provide a list, the system will use introspection to get a list of ALL models in your application (via INSTALLED_APPS).
 
-*BATCH_IMPORT_TEMPFILE_LOCATION*
+*BATCH_IMPORT_TEMPFILE_LOCATION*<br/>
 Specify where the uploaded Microsoft Excel file will be saved to the system.
 NOTE: This must be a absolute path.
 NOTE: Django must have read/write access to this location.
 
-*BATCH_IMPORT_UNEDITABLE_FIELDS*
+*BATCH_IMPORT_UNEDITABLE_FIELDS*<br/>
 By default, the system does not allow you to import data for fields that are not EDITABLE (i.e. in their model field declarations, you've set editable=False). You can override this behavior here.
 
-*BATCH_IMPORT_VALUE_OVERRIDES*
+*BATCH_IMPORT_VALUE_OVERRIDES*<br/>
 Sometimes you will want to override the value coming in from the XLS file with a constant or a dynamically generated value. The following setting is a dictionary of values (or callables) per each fully specified model field.
 NOTE: You must import the item into your settings file if it is a callable.
 

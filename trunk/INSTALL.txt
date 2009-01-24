@@ -48,8 +48,8 @@ TESTING:
 document). Select the sample_school_data.xls file. Click Submit.
 
 14. Leave the options alone for now. Select appropriate mappings from the
-spreadsheet drop downs for each of the model fields. Leave the rest alone.
-Click submit.
+spreadsheet drop downs for each of the model fields. You shouldn't have to 
+select anything for the school data. Click submit.
 
 15. Wait some time (longer on Windows machines for some reason).
 
@@ -57,17 +57,36 @@ Click submit.
 
 17. Go back to http://localhost:8000/batchimport/import_start/
 
-18. Pick Teacher and use the fake_teacher_data.xls file instead. Click submit.
+18. Repeat steps 11-16 for Parents (sample_parents.xls) and 
+Students (sample_students.xls).
 
-19. Match spreadsheet columns to model fields again. Leave the mapping to
-School.name as is. Click submit.
+19. Navigate to http://localhost:8000/batchimport/import_start/
 
-20. Wait some time (again, longer on Windows machines for some reason).
+20. Pick Mapping: Student-Parent from the model drop-down. 
 
-21. See results.
+21. Browse to the sample_data folder (in the same folder you found this 
+document). Select the sample_student_to_parent.xls file. Click Submit.
 
-22. Go to http://localhost:8000/admin/ and log in.
+22. Select the following options:
+Parent:
+-first_name: Pick ParentGivenName from the spreadsheet column dropdown.
+-last_name: Pick ParentSurname from the spreadsheet column dropdown.
+-email: Pick ParentEmailAddress from the spreadsheet column dropdown.
+Student:
+-first_name: Pick StudentGivenName from the spreadsheet column dropdown.
+-last_name: Pick StudentSurname from the spreadsheet column dropdown.
+-dob: Pick StudentBirthday from the spreadsheet column dropdown.
 
-23. Check out the Schools and Teachers you just imported.
+23. Click submit.
+
+24. Wait some time (longer on Windows machines for some reason).
+
+25. See the results of your batch import.
+
+26. Go to http://localhost:8000/admin/ and log in.
+
+27. Check out the Schools, Parents, and Students you just imported.
+NOTE: The last names of the parents do NOT match the last names
+of the students (sorry. was too lazy).
 
 

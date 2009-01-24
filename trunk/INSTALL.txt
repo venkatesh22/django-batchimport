@@ -15,59 +15,43 @@ information.
 4. In the same folder where you found this file is a sample_project folder.
 Navigate to it.
 
-5. Open the settings.py file. Change the following settings to your
-liking:
-   a. Templates folder location (look for "CHANGE_ME!!!" in settings.py).
-   b. (Optional) Database type/location. I've got it set up to write 
-      a Sqlite3 db to this folder and call it "sample_project.db".
-
-6. Open the batchimport/batchimport_settings.py file.
-
-7. Look for this setting information:
-# Specify where the uploaded Microsoft Excel file will be saved to the
-# system.
-# NOTE: This must be a absolute path.
-# NOTE: Django must have read/write access to this location.
-BATCH_IMPORT_TEMPFILE_LOCATION = get_setting('BATCH_IMPORT_TEMPFILE_LOCATION', '/tmp/')
-
-8. Change the default setting to one of your choosing (/tmp/ will work on most
-linux boxes but this will fail on a Windows machine).
-
-9. Go back to your sample_project folder and run syncdb (adding admin user):
+5. Run syncdb (adding admin user):
    python manage.py syncdb
 
-10. Start your django app:
+6. Start your django app:
     python manage.py runserver
 
+
+
 TESTING:
-11. Navigate to http://localhost:8000/batchimport/import_start/
+1. Navigate to http://localhost:8000/batchimport/import_start/
 
-12. Pick School from the model drop-down. 
+2. Pick School from the model drop-down. 
 
-13. Browse to the sample_data folder (in the same folder you found this 
+3. Browse to the sample_data folder (in the same folder you found this 
 document). Select the sample_school_data.xls file. Click Submit.
 
-14. Leave the options alone for now. Select appropriate mappings from the
+4. Leave the options alone for now. Select appropriate mappings from the
 spreadsheet drop downs for each of the model fields. You shouldn't have to 
 select anything for the school data. Click submit.
 
-15. Wait some time (longer on Windows machines for some reason).
+5. Wait some time (longer on Windows machines for some reason).
 
-16. See the results of your batch import.
+6. See the results of your batch import.
 
-17. Go back to http://localhost:8000/batchimport/import_start/
+7. Go back to http://localhost:8000/batchimport/import_start/
 
-18. Repeat steps 11-16 for Parents (sample_parents.xls) and 
+8. Repeat steps 11-16 for Parents (sample_parents.xls) and 
 Students (sample_students.xls).
 
-19. Navigate to http://localhost:8000/batchimport/import_start/
+9. Navigate to http://localhost:8000/batchimport/import_start/
 
-20. Pick Mapping: Student-Parent from the model drop-down. 
+10. Pick Mapping: Student-Parent from the model drop-down. 
 
-21. Browse to the sample_data folder (in the same folder you found this 
+11. Browse to the sample_data folder (in the same folder you found this 
 document). Select the sample_student_to_parent.xls file. Click Submit.
 
-22. Select the following options:
+12. Select the following options:
 Parent:
 -first_name: Pick ParentGivenName from the spreadsheet column dropdown.
 -last_name: Pick ParentSurname from the spreadsheet column dropdown.
@@ -77,16 +61,14 @@ Student:
 -last_name: Pick StudentSurname from the spreadsheet column dropdown.
 -dob: Pick StudentBirthday from the spreadsheet column dropdown.
 
-23. Click submit.
+13. Click submit.
 
-24. Wait some time (longer on Windows machines for some reason).
+14. Wait some time (longer on Windows machines for some reason).
 
-25. See the results of your batch import.
+15. See the results of your batch import.
 
-26. Go to http://localhost:8000/admin/ and log in.
+16. Go to http://localhost:8000/admin/ and log in.
 
-27. Check out the Schools, Parents, and Students you just imported.
+17. Check out the Schools, Parents, and Students you just imported.
 NOTE: The last names of the parents do NOT match the last names
 of the students (sorry. was too lazy).
-
-

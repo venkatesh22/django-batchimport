@@ -15,11 +15,8 @@ up your own URL patterns for these views instead.
 
 
 from django.conf.urls.defaults import *
-from django.views.generic.simple import direct_to_template
-from django.contrib.auth import views as auth_views
 
 from batchimport.views import import_start, import_options, import_execute
-
 
 urlpatterns = patterns('',
                        # Activation keys get matched by \w+ instead of the more specific

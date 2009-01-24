@@ -10,14 +10,12 @@ from os.path import join, isfile
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.core.urlresolvers import reverse
-from django.forms.forms import BoundField
-from django.db.models import get_model
 from django.template import RequestContext
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.core.exceptions import ObjectDoesNotExist
 
 import xlrd
 
-from util import process_import_file
+from util import process_import_file, ModelImportInfo
 from forms import UploadImportFileForm
 from forms import ImportOptionsForm
 from batchimport_settings import *
@@ -32,17 +30,47 @@ def import_start(request, extra_context=None):
     Start the import process by presenting/accepting a form into
 	which the user specifies the model for whom an XLS file is
 	being uploaded and the file/path of the file to upload.
+	
+	The names of the models presented are either from those
+	specified in the setting BATCH_IMPORT_IMPORTABLE_MODELS or
+	using the installed_apps list for the project.
+	
+	The names of "relationships" (for the import of many-to-many
+	data) are retrieved using reflection of the model's related fields
+	and are in the format of
+		"Mapping: [Source_Model]-[Target-Model]
+	
+	For example, suppose you have a model called Student which has
+	a many to many relationship to a model called Parent. Then you
+	would see the following added to the list of importable models:
+		Mapping: Student-Parent
+		
+	NOTE: The list of mappings is also retrieved from the list of 
+	importable models whether that comes from the 
+	BATCH_IMPORT_IMPORTABLE_MODELS setting or from installed_apps.
     
-    See documentation to learn about customizing the templates
-    used for batch import.
+    Customize template used by setting the BATCH_IMPORT_START_TEMPLATE
+    setting.
+    
+    **Required arguments**
+    
+    none.
+    
+    **Optional arguments**
+       
+    ``extra_context``
+        A dictionary of variables to add to the template context. Any
+        callable object in this dictionary will be called to produce
+        the end result which appears in the context.    
     
 	"""
 	if request.method == 'POST':
 		form = UploadImportFileForm(request.POST, request.FILES)
 		if form.is_valid():
 			save_file_name = process_import_file(form.cleaned_data['import_file'], request.session)
+			selected_model = form.cleaned_data['model_for_import']
 			request.session['save_file_name'] = save_file_name
-			request.session['model_for_import'] = form.cleaned_data['model_for_import']
+			request.session['model_for_import'] = selected_model
 			return HttpResponseRedirect(reverse('batchimport_import_options'))
 	else:
 		form = UploadImportFileForm()
@@ -57,17 +85,77 @@ def import_start(request, extra_context=None):
 							  {'form': form},
                               context_instance=context)
 	
-def import_options(request, extra_context=None):
+def import_options(request, extra_context={}):
 	"""
 	This view allows the user to specify options for how the system should
 	attempt to import the data in the uploaded Excel spreadsheet.
 	
-	If this view is not processed, the system will use the default settings
-	for the mechanics-specific options (whether to show successful imports
-	in the results, for example) and will try to guess the appropriate
-	model.field to spreadsheet.column mappings to use. See ``import_execute``
-	for more on that part.
+	There are two types of options: those that govern the process as a whole
+	(whether to stop on errors, whether to update duplicates, etc) and options
+	for mapping a given model field to a given spreadsheet column (as well as
+	some other items about that model field.
 	
+	For Import of Object Data:
+	In the case of a straight data import (of new objects as opposed to
+	an import of relationship mapping information -- see below) the 
+	following options are available to the user for each field in the model:
+	
+		field_name: This is a simple label showing the name of the specific
+			model field. If it has an asterisk, that field is required in 
+			the underlying model.
+		
+		Spreadsheet Column: This is a drop-down list of columns from the 
+			spreadsheet. If no column headers are present, then each option
+			shows the value in that column's cell.
+		
+		Is Identity: This allows the user to specify this specific spreadsheet
+			value as being part of potentially multi-part "key" to identify
+			whether or not this row in the spreadsheet refers to an object
+			already in the database.
+			
+		Default Value: This is the value to use if the spreadsheet contains
+			no data for that specific field.
+			
+		Mapping Field: For those fields that represent a related model, this
+			item represents a list of fields on THAT (related) model. The
+			user will select from these fields and the system will use that
+			selection in trying to grab the appropriate object from the
+			database using the value in the spreadsheet.
+    
+	For Import of Relationship/Mapping Data:
+	In the case of the user uploading relationship data between models, the
+	following options are presented to the user for each field in each 
+	(source and target) model.
+	
+		model_name: This is a simple label showing the name of the source or
+			target model.
+			
+		field_name: This is a simple label showing the name of the specific
+			model field.
+		
+		Spreadsheet Column: This is a drop-down list of columns from the 
+			spreadsheet. If no column headers are present, then each option
+			shows the value in that column's cell.
+		
+		Is Identity: This allows the user to specify this specific spreadsheet
+			value as being part of potentially multi-part "key" to identify
+			whether or not this row in the spreadsheet refers to an object
+			already in the database.
+			
+    Customize template used by setting the BATCH_IMPORT_OPTIONS_TEMPLATE
+    setting.
+    
+    **Required arguments**
+    
+    none.
+    
+    **Optional arguments**
+       
+    ``extra_context``
+        A dictionary of variables to add to the template context. Any
+        callable object in this dictionary will be called to produce
+        the end result which appears in the context.    
+    
 	"""
 	try:
 		save_file_name = request.session['save_file_name']
@@ -77,110 +165,107 @@ def import_options(request, extra_context=None):
 		# So restart the process with a blank form (which will show the
 		# model list).
 		form = UploadImportFileForm()
-		if extra_context is None:
-			extra_context = {}
-	
 		context = RequestContext(request)
 		for key, value in extra_context.items():
 			context[key] = callable(value) and value() or value
-			
 		return render_to_response(BATCH_IMPORT_START_TEMPLATE, 
 								  {'form': form},
 		                          context_instance=context)
-		
+
+	# Process the request.
 	if request.method == 'POST':
 		# Add the various options to the session for use during execution.
 		form = ImportOptionsForm(model_for_import, save_file_name, request.POST, request.FILES)
 		if form.is_valid():
-			# Put the various user-specified options in the session for use during execution.
-			request.session['field_name_list'] = form.field_dict.keys()
-			request.session['show_successful_imports'] = form.cleaned_data['show_successful_imports']
-			request.session['show_successful_updates'] = form.cleaned_data['show_successful_updates']
-			request.session['show_errors'] = form.cleaned_data['show_errors']
-			request.session['stop_on_first_error'] = form.cleaned_data['stop_on_first_error']
-			request.session['update_dupes'] = form.cleaned_data['update_dupes']
-			request.session['start_row'] = form.cleaned_data['start_row']
-			request.session['end_row'] = form.cleaned_data['end_row']
-				
-			# Put each dynamically created form field's value in the session here.
-			for field_name in form.field_dict.keys():
-				request.session[field_name + '_related_model_app_name'] = form.related_model_dict[field_name][0]
-				request.session[field_name + '_related_model_name'] = form.related_model_dict[field_name][1]
-				request.session[field_name + '_xls_column'] = form.cleaned_data[field_name + '_xls_column']
-				request.session[field_name + '_default_value'] = form.cleaned_data[field_name + '_default_value']
-				if request.session[field_name + '_default_value'] == '':
-					request.session[field_name + '_default_value'] = None
-				request.session[field_name + '_mapping_choice'] = form.cleaned_data[field_name + '_mapping_choice']
-				request.session[field_name + '_is_id_field'] = form.cleaned_data[field_name + '_is_id_field']
+			# Put the list of models and the various user-specified options in the session 
+			# for use during execution.
+			request.session['process_options'] = {}
+			for option in form.get_process_options_dict().keys():
+				request.session['process_options'][option] = form.cleaned_data[option]
+			model_field_value_dict = {}
+			for field_name in form.model_field_names:
+				model_field_value_dict[field_name] = form.cleaned_data[field_name]
+			model_import_info = ModelImportInfo(model_for_import, model_field_value_dict, form.relation_info_dict)
+			request.session['model_import_info'] = model_import_info
 		else:
-			form.field_dict = _get_bound_field_dict(form)
-			if extra_context is None:
-				extra_context = {}
-		
 			context = RequestContext(request)
 			for key, value in extra_context.items():
 				context[key] = callable(value) and value() or value
-
 			return render_to_response(BATCH_IMPORT_OPTIONS_TEMPLATE, {'form': form, 'model_for_import':model_for_import},
 		                          context_instance=context)
-			
 
 		# Redirect to the Processing template which displays a "processing,
 		# please wait" notice and immediately fires off execution of the import.
-		if extra_context is None:
-			extra_context = {}
-	
 		context = RequestContext(request)
 		for key, value in extra_context.items():
 			context[key] = callable(value) and value() or value
 		return render_to_response(BATCH_IMPORT_EXECUTE_TEMPLATE, {}, context_instance=context)
 	else:
 		form = ImportOptionsForm(model_for_import, save_file_name)
-		form.field_dict = _get_bound_field_dict(form)
-		if extra_context is None:
-			extra_context = {}
-	
 		context = RequestContext(request)
 		for key, value in extra_context.items():
 			context[key] = callable(value) and value() or value
-
 		return render_to_response(BATCH_IMPORT_OPTIONS_TEMPLATE, {'form': form, 'model_for_import':model_for_import},
 	                          context_instance=context)
 	
-def import_execute(request, extra_context=None):
+def import_execute(request, extra_context={}):
+	"""
+	This is the view that actually processed the import based on the options
+	set by the user in import_options (above).
+	
+	In addition to calling the appropriate import function (see below) this
+	view also prepares the status information dictionary that will be used
+	by those import functions and later used to render the results.
+	
+	The actual template used just immediately reloads the page to the
+	results template.
+			
+    Customize template used by setting the BATCH_IMPORT_EXECUTE_TEMPLATE
+    setting.
+    
+    **Required arguments**
+    
+    none.
+    
+    **Optional arguments**
+       
+    ``extra_context``
+        A dictionary of variables to add to the template context. Any
+        callable object in this dictionary will be called to produce
+        the end result which appears in the context.    
+    
+	"""
+
 	# Get the name of the uploaded Excel file for processing and the model
 	# for which we're trying to import. If either are missing, send the user
 	# back to the beginning of the process.
 	try:
+		model_import_info = request.session['model_import_info']
 		save_file_name = request.session['save_file_name']
-		model_for_import = request.session['model_for_import']
 	except KeyError:
 		# Either we don't have a file or we don't know what we're importing.
 		# So restart the process with a blank form (which will show the
 		# model list).
 		form = UploadImportFileForm()
-		return render_to_response(BATCH_IMPORT_START_TEMPLATE, {'form': form})
+		context = RequestContext(request)
+		for key, value in extra_context.items():
+			context[key] = callable(value) and value() or value
+		return render_to_response(BATCH_IMPORT_START_TEMPLATE, 
+								  {'form': form},
+		                          context_instance=context)
 
 	# Retrieve the "import mechanics options". These will be set from the
 	# user-specified options or from the settings-based defaults.
-	show_successful_imports = _get_option_setting(request, 'show_successful_imports', BATCH_IMPORT_SHOW_SUCCESSFUL_IMPORTS)
-	show_successful_updates = _get_option_setting(request, 'show_successful_updates', BATCH_IMPORT_SHOW_SUCCESSFUL_UPDATES)
-	show_errors = _get_option_setting(request, 'show_errors', BATCH_IMPORT_SHOW_ERRORS)
-	stop_on_first_error = _get_option_setting(request, 'stop_on_first_error', BATCH_IMPORT_STOP_ON_FIRST_ERROR)
-	update_dupes = _get_option_setting(request, 'update_dupes', BATCH_IMPORT_UPDATE_DUPS)
-	start_row = _get_option_setting(request, 'start_row', BATCH_IMPORT_START_ROW)
-	end_row = _get_option_setting(request, 'end_row', BATCH_IMPORT_END_ROW)
+	process_option_dict = request.session['process_options']
 	
 	# Prepare the context to be sent to the template so we can load it
 	# as we go along.
 	status_dict = {}
 	
 	# Prepare for the results processing.
-	status_dict['model_for_import'] = model_for_import.split('.')[-1]
-	status_dict['start_row'] = start_row
-	status_dict['end_row'] = end_row
+	status_dict['start_row'] = process_option_dict['start_row']
+	status_dict['end_row'] = process_option_dict['end_row']
 	status_dict['num_rows_in_spreadsheet'] = 0
-
 	status_dict['num_rows_processed'] = 0
 	status_dict['num_items_imported'] = 0
 	status_dict['num_items_updated'] = 0
@@ -203,101 +288,24 @@ def import_execute(request, extra_context=None):
 		sheet = book.sheet_by_index(0)
 		status_dict['num_rows_in_spreadsheet'] = sheet.nrows
 	except:
-		status_dict['error_results_messages'].append('Error opening Excel file: '+ sys.exc_info()[1])
+		status_dict['error_results_messages'].append('Error opening Excel file: '+ `sys.exc_info()[1]`)
 		return _render_results_response(request, status_dict, extra_context)
 	
 	# Determine the last row of the spreadsheet to be processed.
-	if end_row == -1:
-		end_row = sheet.nrows
-		status_dict['end_row'] = end_row
+	if process_option_dict['end_row'] == -1:
+		process_option_dict['end_row'] = sheet.nrows
+		status_dict['end_row'] = process_option_dict['end_row']
 
-	# Iterate over each row in the spreadsheet. For each row, try to insert
-	# a new item in the database for the appropriate model.
-	for row in range(start_row-1,end_row):
-		try:
-			status_dict['num_rows_processed'] = status_dict['num_rows_processed'] + 1
-			# Get the list of fields for our object.
-			field_name_list = request.session['field_name_list']
-			field_value_dict = {}
-			field_identity_dict = {}
-			for field_name in field_name_list:
-				# First retrieve the correct value from the current row.
-				column_number = int(request.session[field_name + '_xls_column'])
-				if column_number > -1:
-					value_from_spreadsheet_row = sheet.cell_value(rowx=row, colx=column_number)
-				else:
-					value_from_spreadsheet_row = None
-				field_value_from_sheet = value_from_spreadsheet_row or request.session[field_name + '_default_value']
-				field_value = field_value_from_sheet
-	
-				# If the current field represents a relationship, get the id 
-				# from the related model using the mapping specified by the user.
-				field_related_model_name = request.session[field_name + '_related_model_name']
-				field_related_model_app_name = request.session[field_name + '_related_model_app_name']
-				field_related_model_field_name = request.session[field_name + '_mapping_choice']
-				if not field_related_model_name is None:
-					related_object_keyword_dict = {}
-					related_object_keyword_dict[str(field_related_model_field_name+'__iexact')] = str(field_value_from_sheet)
-					related_model_class = get_model(field_related_model_app_name, field_related_model_name)
-					try:
-						related_object = related_model_class.objects.get(**related_object_keyword_dict)
-						field_value = related_object
-					except:
-						field_value = None
-				if field_value:
-					field_value_dict[field_name] = field_value
-					field_is_identifier = request.session[field_name + '_is_id_field']
-					if field_is_identifier:
-						field_identity_dict[field_name] = field_value
-			
-			# Now see if the data in this row represents an already
-			# existing model in the database.
-			app_name = model_for_import.split(".")[0]
-			specific_model_name = model_for_import.split('.')[-1]
-			model = get_model(app_name, specific_model_name)
-			
-			# If the user specified some fields as identity fields, try
-			# to use them to find duplicates.
-			try:
-				if len(field_identity_dict.keys()) > 0:
-					# User specified some identity columns. Use them to
-					# look for dupes for update.
-					dupe_in_db = model.objects.get(**field_identity_dict)
-				else:
-					# User did NOT specify some identiy columns. Use the
-					# entire list of field values to check for dups.
-					dupe_in_db = model.objects.get(**field_value_dict)
-				if update_dupes: # Probably superfluous in the second case.
-					for key in field_value_dict.keys():
-						setattr(dupe_in_db, key, field_value_dict[key])
-					dupe_in_db.save()
-					status_msg = 'spreadsheet row#' + str(row)+' successfully updated.'
-					status_dict['num_items_updated'] = status_dict['num_items_updated'] + 1
-					if show_successful_updates:
-						status_dict['combined_results_messages'].append(status_msg)
-					status_dict['update_results_messages'].append(status_msg)
-					
-			except ObjectDoesNotExist:
-				# The object doesn't exist. Go ahead and add it.
-				new_object = model(**field_value_dict)
-				new_object.save()
-				status_msg = 'spreadsheet row#' + str(row)+' successfully imported.'
-				status_dict['num_items_imported'] = status_dict['num_items_imported'] + 1
-				if show_successful_imports:
-					status_dict['combined_results_messages'].append(status_msg)
-				status_dict['import_results_messages'].append(status_msg)
-		except:
-			status_dict['num_errors'] = status_dict['num_errors'] + 1
-			status_msg = 'spreadsheet row#' + str(row)+' ERROR: ' + `sys.exc_info()[1]`
-			if show_errors:
-				status_dict['combined_results_messages'].append(status_msg)
-			status_dict['error_results_messages'].append(status_msg)
-			if stop_on_first_error:
-				break
-			
+	if model_import_info.import_mode == ModelImportInfo.OBJECT_IMPORT:
+		status_dict = _do_batch_import(request, model_import_info, book, sheet, process_option_dict, status_dict)
+	else:
+		status_dict = _do_relation_import(request, model_import_info, book, sheet, process_option_dict, status_dict)
+
 	# Clean up...
 	del request.session['save_file_name']
 	del request.session['model_for_import']
+	del request.session['process_options']
+	del request.session['model_import_info']
 	filepath = join(BATCH_IMPORT_TEMPFILE_LOCATION, save_file_name)
 	if isfile(filepath):
 		os.remove(filepath)
@@ -306,30 +314,173 @@ def import_execute(request, extra_context=None):
 	return _render_results_response(request, status_dict, extra_context)
 
 
-def _get_bound_field_dict(form):
-	bound_field_dict = {}
-	for key in form.field_dict.keys():
-		bound_field_list = []
-		field_list = form.field_dict[key]
-		for field_name in field_list:
-			bound_field = form[field_name]
-			bound_field_list.append(bound_field)
-		bound_field_dict[key] = bound_field_list
-	return bound_field_dict
-
-def _get_option_setting(request, option, default):
-	try:
-		return request.session[option]
-	except:
-		return default
+def _do_batch_import(request, model_import_info, book, sheet, process_option_dict, status_dict):
+	"""
+	This function actually processes the incoming spreadsheet for object
+	import. While it can handle relationships, especially simple foreign
+	key relationships, etc, it is best to actually use the relationship
+	import below to import relationship data...
 	
-def _instantiate_and_save_model(model, field_value_dict):
-	# Validate the values being sent in and remove keyword
-	# arguments where the values do not work.
-	new_object = model(**field_value_dict)
-	new_object.save()
+	Basically, it goes row by row in the spreadsheet, matches up the cell
+	value for each column to an appropriate field in the model into which
+	we're importing. Then it uses the identity columns to see if the current
+	row represents an object already in the database. If so, it updates
+	that object (if the settings say to do so. If not, then it creates it.  
+	
+    **Required arguments**
+    
+    ``request``
+    	Current HTTP request. This is used in case your override function needs
+    	current session information.
+    	
+	``model_import_info``
+		This is the ModelImportInfo class (from batchimport.util) that holds 
+		all the various mapping information for the models and their fields.
+		
+	``book``
+		Current Excel workbook being processed.
+		
+	``sheet``
+		The current worksheet in the workbook being processed.
+		
+	``process_option_dict``
+		This is a dictionary specifying the various mechanics options for 
+		the process (whether to stop on error, whether to update dupes, etc)
+		
+	``status_dict``
+		This is the status information dictionary that will be used to display
+		results to the user after completion of the process.
+    
+    **Optional arguments**
+       
+    none.    
+    
+	"""
+	import_object_dict = {}
+	import_object_id_dict = {}
+	for row in range(process_option_dict['start_row']-1,process_option_dict['end_row']):
+		status_dict['num_rows_processed'] = status_dict['num_rows_processed'] + 1
+		try:
+			row_value_list = []
+			for cell in sheet.row(row):
+				if cell.ctype == 3:
+					date_tuple = xlrd.xldate_as_tuple(cell.value, book.datemode)
+					cell_value = str(date_tuple[0]) + '-' + str(date_tuple[1])  + '-' + str(date_tuple[2])
+				else:
+					cell_value = cell.value
+				row_value_list.append(cell_value)
+			import_object_dict, import_object_id_dict = model_import_info.get_import_object_dicts(request, row_value_list)
+	
+			try:
+				# See if the current row represents a dupe.
+				dupe_in_db = model_import_info.model_for_import.objects.get(**import_object_id_dict)
+				if process_option_dict['update_dupes']: 
+					for key in import_object_dict.keys():
+						setattr(dupe_in_db, key, import_object_dict[key])
+					dupe_in_db.save()
+					status_msg = 'spreadsheet row#' + str(row)+' successfully updated.'
+					status_dict['num_items_updated'] = status_dict['num_items_updated'] + 1
+					if process_option_dict['show_successful_updates']:
+						status_dict['combined_results_messages'].append(status_msg)
+					status_dict['update_results_messages'].append(status_msg)
+					
+			except ObjectDoesNotExist:
+				# The object doesn't exist. Go ahead and add it.
+				new_object = model_import_info.model_for_import(**import_object_dict)
+				new_object.save()
+				status_msg = 'spreadsheet row#' + str(row)+' successfully imported.'
+				status_dict['num_items_imported'] = status_dict['num_items_imported'] + 1
+				if process_option_dict['show_successful_imports']:
+					status_dict['combined_results_messages'].append(status_msg)
+				status_dict['import_results_messages'].append(status_msg)
+		except:
+			status_dict['num_errors'] = status_dict['num_errors'] + 1
+			status_msg = 'spreadsheet row#' + str(row)+' ERROR: ' + `sys.exc_info()[1]`
+			if process_option_dict['show_errors']:
+				status_dict['combined_results_messages'].append(status_msg)
+			status_dict['error_results_messages'].append(status_msg)
+			if process_option_dict['stop_on_first_error']:
+				break
+	return status_dict
+
+
+def _do_relation_import(request, model_import_info, book, sheet, process_option_dict, status_dict):
+	"""
+	This function processes the incoming spreadsheet for relationship data.
+	It is assumed that each row in the spreadsheet has enough data to 
+	find two objects: a source object and a target object. This function
+	then simply finds both object, maps the target object to the source
+	object and saves the source object. 
+	
+    **Required arguments**
+    
+    ``request``
+    	Current HTTP request. This is used in case your override function needs
+    	current session information.
+    	
+	``model_import_info``
+		This is the ModelImportInfo class (from batchimport.util) that holds 
+		all the various mapping information for the models and their fields.
+		
+	``book``
+		Current Excel workbook being processed.
+		
+	``sheet``
+		The current worksheet in the workbook being processed.
+		
+	``process_option_dict``
+		This is a dictionary specifying the various mechanics options for 
+		the process (whether to stop on error, whether to update dupes, etc)
+		
+	``status_dict``
+		This is the status information dictionary that will be used to display
+		results to the user after completion of the process.
+    
+    **Optional arguments**
+       
+    none.    
+    
+	"""
+	relationship_source_id_dict = {}
+	relationship_target_id_dict = {}
+	for row in range(process_option_dict['start_row']-1,process_option_dict['end_row']):
+		status_dict['num_rows_processed'] = status_dict['num_rows_processed'] + 1
+		try:
+			row_value_list = []
+			for cell in sheet.row(row):
+				if cell.ctype == 3:
+					date_tuple = xlrd.xldate_as_tuple(cell.value, book.datemode)
+					cell_value = str(date_tuple[0]) + '-' + str(date_tuple[1])  + '-' + str(date_tuple[2])
+				else:
+					cell_value = cell.value
+				row_value_list.append(cell_value)
+			relationship_source_id_dict = model_import_info.get_relationship_source_id_dict(request, row_value_list)
+			relationship_target_id_dict = model_import_info.get_relationship_target_id_dict(request, row_value_list)
+			source_object = model_import_info.source_model.objects.get(**relationship_source_id_dict)
+			target_object = model_import_info.target_model.objects.get(**relationship_target_id_dict)
+			related_field_collection = getattr(source_object, model_import_info.mapping_field_name)
+			related_field_collection.add(target_object)
+			source_object.save()
+			status_msg = 'spreadsheet row#' + str(row)+' successfully updated.'
+			status_dict['num_items_updated'] = status_dict['num_items_updated'] + 1
+			if process_option_dict['show_successful_updates']:
+				status_dict['combined_results_messages'].append(status_msg)
+			status_dict['update_results_messages'].append(status_msg)
+		except:
+			status_dict['num_errors'] = status_dict['num_errors'] + 1
+			status_msg = 'spreadsheet row#' + str(row)+' ERROR: ' + `sys.exc_info()[1]`
+			if process_option_dict['show_errors']:
+				status_dict['combined_results_messages'].append(status_msg)
+			status_dict['error_results_messages'].append(status_msg)
+			if process_option_dict['stop_on_first_error']:
+				break
+	return status_dict
 
 def _render_results_response(request, status_dict, extra_context):
+	"""
+	Laziness function. I got tired of typing this every time... 
+    
+	"""	
 	if extra_context is None:
 		extra_context = {}
 

@@ -10,7 +10,6 @@ TITLE_CHOICES = (
     ('Miss.', 'Miss.'),
 )
 
-# Create your models here.
 class School(models.Model):
     name = models.CharField("Name of school", max_length=100)
     address_1 = models.CharField("Street address of school", max_length=200)
@@ -23,7 +22,7 @@ class School(models.Model):
     def __unicode__(self):
         return self.name + ' (' + self.city + ', ' + self.state + ')'
 
-class Teacher(models.Model):
+class Person(models.Model):
     title = models.CharField("Title", max_length=4, choices=TITLE_CHOICES)
     first_name = models.CharField("First name", max_length=100)
     last_name = models.CharField("Last name", max_length=100)
@@ -32,3 +31,19 @@ class Teacher(models.Model):
     school = models.ForeignKey(School)
     def __unicode__(self):
         return self.last_name + ', ' + self.first_name
+
+class Parent(Person):
+    """A parent in the schoolicity database."""
+    pass
+
+class Student(Person):
+    """A student in the schoolicity database."""
+    dob = models.DateField("Student's birth date", help_text='Used for determining age.')
+    parents = models.ManyToManyField(Parent, related_name="student_parent",blank=True, null=True, )
+
+    def __unicode__(self):
+        dob = self.dob
+        approx_age = datetime.datetime.today().date() - dob
+        return self.last_name + ', ' + self.first_name + ' (age: ' + str(approx_age.days/365) + ')'
+
+

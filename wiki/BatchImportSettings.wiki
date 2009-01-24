@@ -1,6 +1,8 @@
 #summary Descriptions of all available django-batchimport settings.
 
 = Customizable Settings for django-batchimport =
+You can set one or more of the following settings in your django project's settings.py file to override the default behavior of django-batchimport.
+
 *BATCH_IMPORT_START_TEMPLATE*<br/>
 *BATCH_IMPORT_OPTIONS_TEMPLATE*<br/>
 *BATCH_IMPORT_EXECUTE_TEMPLATE*<br/>
